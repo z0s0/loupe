@@ -1,4 +1,4 @@
-package service
+package loupe.service
 
 import com.sksamuel.elastic4s.{ElasticClient, Response}
 import com.sksamuel.elastic4s.ElasticDsl._

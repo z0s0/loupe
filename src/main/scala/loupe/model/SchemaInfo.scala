@@ -1,6 +1,7 @@
-package model
+package loupe.model
+
 import io.circe._
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 
 object SchemaInfo {
   implicit val encoder: Encoder[SchemaInfo] = deriveEncoder

@@ -1,5 +1,7 @@
-import com.sksamuel.elastic4s.{ElasticProperties, ElasticClient => Client}
+package loupe
+
 import com.sksamuel.elastic4s.http.JavaClient
+import com.sksamuel.elastic4s.{ElasticProperties, ElasticClient => Client}
 import org.apache.http.auth.{AuthScope, UsernamePasswordCredentials}
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.impl.client.BasicCredentialsProvider

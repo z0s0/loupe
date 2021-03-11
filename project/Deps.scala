@@ -9,15 +9,17 @@ object Deps {
     val `zio-config` = "1.0.0-RC27"
     val `zio-logging` = "0.5.2"
     val http4s = "0.21.11"
-    val testcontainers = "0.38.1"
+    val testcontainers = "1.15.0-rc2"
     val pureConfigVersion = "0.14.0"
     val slf4j = "1.7.30"
     val logback = "1.2.3"
     val tapir = "0.17.12"
-    val derevo = "0.12.1"
   }
 
-  val derevoDeps = List("tf.tofu" %% "derevo-circe" % vsn.derevo)
+  val testcontainers = List(
+    "org.testcontainers" % "testcontainers" % "1.15.0-rc2" % Test,
+    "org.testcontainers" % "elasticsearch" % "1.15.0-rc2" % Test
+  )
 
   val catsDeps = List("org.typelevel" %% "cats-core" % vsn.cats)
 
@@ -45,7 +47,10 @@ object Deps {
   val zioDeps = List(
     "dev.zio" %% "zio" % vsn.zio,
     "dev.zio" %% "zio-macros" % vsn.zio,
-    "dev.zio" %% "zio-interop-cats" % vsn.interopCats
+    "dev.zio" %% "zio-interop-cats" % vsn.interopCats,
+    "dev.zio" %% "zio-test" % vsn.zio % Test,
+    "dev.zio" %% "zio-test-sbt" % vsn.zio % Test,
+    "dev.zio" %% "zio-test-magnolia" % vsn.zio % Test
   )
 
   val tapirDeps = Seq(
@@ -60,5 +65,6 @@ object Deps {
   )
 
   val deps =
-    elastic4S ++ configDeps ++ catsDeps ++ logDeps ++ http4sDeps ++ zioDeps ++ tapirDeps ++ derevoDeps
+    elastic4S ++ configDeps ++ catsDeps ++ logDeps ++ http4sDeps ++ zioDeps ++ tapirDeps ++
+      testcontainers
 }
