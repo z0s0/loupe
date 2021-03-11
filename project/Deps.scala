@@ -56,7 +56,7 @@ object Deps {
     "com.softwaremill.sttp.tapir" %% "tapir-json-play" % vsn.tapir,
     "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs" % vsn.tapir,
     "com.softwaremill.sttp.tapir" %% "tapir-openapi-circe-yaml" % vsn.tapir,
-    "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-akka-http" % vsn.tapir
+    "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s" % vsn.tapir
   )
 
   val deps =
