@@ -2,7 +2,7 @@ package service
 
 import com.sksamuel.elastic4s.ElasticClient
 import model.SchemaInfo
-import zio.{Has, Task, UIO, URLayer, ZIO, ZLayer}
+import zio.{Has, IO, Task, UIO, URLayer, ZIO, ZLayer}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.zio.instances._
 
@@ -17,7 +17,13 @@ object ElasticInfo {
   val live: URLayer[Has[ElasticClient], ElasticInfo] = ZLayer.fromService {
     client =>
       new Service {
-        override def listSchemas: Task[List[SchemaInfo]] = UIO(List())
+        override def listSchemas: Task[List[SchemaInfo]] =
+          for {
+            indexesResponses <- client.execute(catIndices).map(_.result.toList)
+          } yield
+            indexesResponses.map(
+              resp => SchemaInfo(name = resp.index, documentsCount = resp.count)
+            )
 
         override def hasIndex(indexName: String): Task[Boolean] = {
           client
