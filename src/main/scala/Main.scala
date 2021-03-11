@@ -1,10 +1,11 @@
-import api.Search
+import api.{Docs, Search}
 import org.http4s.syntax.kleisli._
-import org.http4s.{HttpApp, HttpRoutes}
+import cats.syntax.all._
+import org.http4s.HttpRoutes
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
-import service.ElasticInfo
 import service.Layer.Services
+import sttp.tapir.swagger.http4s.SwaggerHttp4s
 import zio._
 import zio.clock.Clock
 import zio.interop.catz._
@@ -17,22 +18,21 @@ object Main extends App {
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
     val program = for {
       apiConf <- ZIO.access[Has[ApiConfig]](_.get)
-      res <- ElasticInfo.hasIndex("movies")
-      _ <- UIO(println(res))
-      httpApp = Router("/" -> Search.routes).orNotFound
-      _ <- runHttp(httpApp, apiConf)
+      _ <- runHttp(Search.routes, apiConf)
     } yield ()
 
     program.provideCustomLayer(DI.live).exitCode
   }
 
-  def runHttp[R <: Clock](httpApp: HttpApp[RIO[R, *]], apiConf: ApiConfig) = {
+  def runHttp[R <: Clock](routes: HttpRoutes[RIO[R, *]], apiConf: ApiConfig) = {
     type Task[T] = RIO[R, T]
 
     ZIO.runtime[R].flatMap { implicit rt =>
+      val swagger = new SwaggerHttp4s(Docs.yaml).routes[Task]
+
       BlazeServerBuilder[Task]
         .bindHttp(apiConf.port, "localhost")
-        .withHttpApp(httpApp)
+        .withHttpApp(Router("/" -> (routes <+> swagger)).orNotFound)
         .serve
         .compile[Task, Task, cats.effect.ExitCode]
         .drain

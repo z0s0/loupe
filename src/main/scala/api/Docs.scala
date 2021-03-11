@@ -2,6 +2,7 @@ package api
 
 import model.SchemaInfo
 import sttp.model.StatusCode
+import sttp.tapir.docs.openapi.OpenAPIDocsInterpreter
 import sttp.tapir.json.circe.jsonBody
 import sttp.tapir.generic.auto._
 import sttp.tapir.openapi.circe.yaml._
@@ -23,4 +24,6 @@ object Docs {
       .errorOut(stringBody)
 
   val docs = List(schemas, search)
+
+  val yaml = OpenAPIDocsInterpreter.toOpenAPI(docs, "Loupe", "1").toYaml
 }
