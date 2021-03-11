@@ -12,7 +12,7 @@ object Docs {
   val schemas =
     endpoint.get
       .in("schemas")
-      .out(jsonBody[Vector[SchemaInfo]])
+      .out(jsonBody[List[SchemaInfo]])
       .errorOut(stringBody)
 
   val search =

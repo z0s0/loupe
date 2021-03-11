@@ -7,6 +7,4 @@ object SchemaInfo {
   implicit val decoder: Decoder[SchemaInfo] = deriveDecoder
 }
 
-final case class SchemaInfo(name: String,
-                            documentsCount: Int,
-                            schema: Map[String, String])
+final case class SchemaInfo(name: String, documentsCount: Long)

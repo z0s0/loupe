@@ -1,11 +1,8 @@
 package api
-import org.http4s.HttpRoutes
 import service.ElasticInfo.ElasticInfo
-import sttp.tapir.server.http4s.ztapir.ZHttp4sServerInterpreter
 import sttp.tapir.ztapir._
 import zio.IO
 import service.{ElasticInfo, Search => SearchService}
-import zio.interop.catz._
 
 object Search {
   type Deps = ElasticInfo with SearchService.Search
@@ -31,6 +28,5 @@ object Search {
           }
     }
 
-  def routes =
-    ZHttp4sServerInterpreter.from(searchLogic).toRoutes
+  def routes = List(searchLogic)
 }
