@@ -1,6 +1,6 @@
 package loupe.service
 
-import com.sksamuel.elastic4s.ElasticClient
+import com.sksamuel.elastic4s.{ElasticClient, RequestFailure, RequestSuccess}
 import zio.{Has, IO, Task, UIO, URLayer, ZIO, ZLayer}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.zio.instances._
@@ -11,6 +11,7 @@ object ElasticManager {
 
   sealed trait ElasticError
   final case class Conflict(message: String) extends ElasticError
+  final case class Disaster(message: String) extends ElasticError
 
   trait Service {
     def listSchemas: Task[List[SchemaInfo]]
@@ -40,10 +41,13 @@ object ElasticManager {
         def createSchema(name: String): IO[ElasticError, Boolean] =
           client
             .execute(createIndex(name))
-            .map(_.result.acknowledged)
-            .catchAll(
-              _ => IO.fail(Conflict("Network error or schema already exists"))
-            )
+            .catchAll(_ => IO.fail(Disaster("Network error")))
+            .flatMap {
+              case RequestSuccess(_, _, _, result) =>
+                IO.succeed(result.acknowledged)
+              case RequestFailure(_, _, _, _) =>
+                IO.fail(Conflict("schema already exists"))
+            }
 
         override private[service] def cleanAll: Task[Boolean] =
           client

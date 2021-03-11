@@ -3,6 +3,7 @@ package service
 import com.sksamuel.elastic4s.ElasticClient
 import loupe.ElasticConfig
 import loupe.service.ElasticManager
+import loupe.service.ElasticManager.Conflict
 import loupe.{ElasticClient => Client}
 import org.testcontainers.elasticsearch.ElasticsearchContainer
 import zio.{Has, UIO, URLayer, ZIO, ZLayer}
@@ -30,8 +31,8 @@ object ElasticManagerSpec extends DefaultRunnableSpec {
 
   val layer = containerLayer >>> elasticConfig >>> Client.live >>> ElasticManager.live
 
-  override def spec =
-    suite("ElasticManager")(
+  override def spec = {
+    suite("hasIndex")(
       testM("hasIndex return false unless index exists. Returns true if exists") {
         for {
           _ <- ElasticManager.createSchema("existing")
@@ -44,5 +45,23 @@ object ElasticManagerSpec extends DefaultRunnableSpec {
       }
     ).@@(after(ElasticManager.cleanAll.orDie))
       .provideSomeLayerShared[Environment](layer.orDie)
+
+    suite("createSchema")(
+      testM("adds new schema if index does not exist") {
+        for {
+          resp <- ElasticManager.createSchema("new_index")
+        } yield assert(resp)(isTrue)
+      },
+      testM("returns Conflict() if index exists") {
+        val effect = ElasticManager.createSchema("idx")
+
+        for {
+          _ <- effect
+          eff <- effect.run
+        } yield assert(eff)(fails(equalTo(Conflict("schema already exists"))))
+      }
+    ).@@(after(ElasticManager.cleanAll.orDie))
+      .provideCustomLayer(layer.orDie)
+  }
 
 }
