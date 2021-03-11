@@ -1,15 +1,17 @@
-import api.{Docs, Schemas, Search}
+package loupe
+
 import cats.syntax.all._
-import org.http4s.syntax.kleisli._
+import loupe.api.{Docs, Schemas, Search}
+import loupe.service.Layer.Services
 import org.http4s.HttpRoutes
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
-import service.Layer.Services
+import org.http4s.syntax.kleisli._
 import sttp.tapir.server.http4s.ztapir.ZHttp4sServerInterpreter
 import sttp.tapir.swagger.http4s.SwaggerHttp4s
+import sttp.tapir.ztapir._
 import zio._
 import zio.clock.Clock
-import sttp.tapir.ztapir._
 import zio.interop.catz._
 
 object Main extends App {
@@ -31,7 +33,8 @@ object Main extends App {
     program.provideCustomLayer(DI.live).exitCode
   }
 
-  def runHttp[R <: Clock](routes: HttpRoutes[RIO[R, *]], apiConf: ApiConfig) = {
+  private def runHttp[R <: Clock](routes: HttpRoutes[RIO[R, *]],
+                                  apiConf: ApiConfig) = {
     type Task[T] = RIO[R, T]
 
     ZIO.runtime[R].flatMap { implicit rt =>

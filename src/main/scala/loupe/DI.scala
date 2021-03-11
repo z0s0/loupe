@@ -1,6 +1,8 @@
-import Config.Configs
-import service.Layer.Services
-import service.{Layer => ServiceLayer}
+package loupe
+
+import loupe.Config.Configs
+import loupe.service.Layer.Services
+import loupe.service.{Layer => ServiceLayer}
 import zio.ZLayer
 import zio.clock.Clock
 

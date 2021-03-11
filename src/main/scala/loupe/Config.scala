@@ -1,3 +1,5 @@
+package loupe
+
 import pureconfig.ConfigSource
 import pureconfig.generic.auto._
 import zio.{Has, Layer, Task, ZLayer}

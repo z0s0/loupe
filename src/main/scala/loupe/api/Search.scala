@@ -1,17 +1,20 @@
-package api
-import service.ElasticInfo.ElasticInfo
+package loupe.api
+
+import loupe.service.ElasticManager.ElasticManager
+import loupe.service.ElasticManager
+import loupe.service.Search.Search
+import loupe.service.{Search => SearchService}
 import sttp.tapir.ztapir._
 import zio.IO
-import service.{ElasticInfo, Search => SearchService}
 
 object Search {
-  type Deps = ElasticInfo with SearchService.Search
+  type Deps = ElasticManager with Search
 
   val searchLogic
     : ZServerEndpoint[Deps, (String, String), String, Map[String, String]] =
     Docs.search.zServerLogic {
       case (schema, query) =>
-        ElasticInfo
+        ElasticManager
           .hasIndex(schema)
           .catchAll(_ => IO.fail("elastic error"))
           .flatMap {

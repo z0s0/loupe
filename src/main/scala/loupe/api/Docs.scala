@@ -1,6 +1,6 @@
-package api
+package loupe.api
 
-import model.SchemaInfo
+import loupe.model.SchemaInfo
 import sttp.model.StatusCode
 import sttp.tapir.docs.openapi.OpenAPIDocsInterpreter
 import sttp.tapir.json.circe.jsonBody
