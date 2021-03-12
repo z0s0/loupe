@@ -1,6 +1,9 @@
 package service
 
 import loupe.ElasticConfig
+import loupe.model.SchemaInfo
+import loupe.model.errors.Conflict
+import loupe.model.params.CreateSchemaParams
 import loupe.service.ElasticManager
 import loupe.{ElasticClient => Client}
 import org.testcontainers.elasticsearch.ElasticsearchContainer
@@ -30,11 +33,14 @@ object ElasticManagerSpec extends DefaultRunnableSpec {
 
   val layer = containerLayer >>> elasticConfig >>> Client.live >>> ElasticManager.live
 
+  def createSchemaParams(name: String) =
+    CreateSchemaParams(name = name, lang = "en", mappings = Map("a" -> "int"))
+
   override def spec = {
     suite("ElasticManager")(
       suite("hasIndex")(testM("returns if index exists") {
         for {
-          _ <- ElasticManager.createSchema("existing")
+          _ <- ElasticManager.createSchema(createSchemaParams("existing"))
           notExistingExists <- ElasticManager.hasIndex("not_existing_index")
           existingExists <- ElasticManager.hasIndex("existing")
         } yield {
@@ -45,11 +51,14 @@ object ElasticManagerSpec extends DefaultRunnableSpec {
       suite("createSchema")(
         testM("adds new schema if index does not exist") {
           for {
-            resp <- ElasticManager.createSchema("new_index")
-          } yield assert(resp)(isTrue)
+            resp <- ElasticManager.createSchema(createSchemaParams("new_index"))
+          } yield
+            assert(resp)(
+              equalTo(SchemaInfo(name = "new_index", documentsCount = 0))
+            )
         },
         testM("createSchema returns Conflict() if index exists") {
-          val effect = ElasticManager.createSchema("idx")
+          val effect = ElasticManager.createSchema(createSchemaParams("idx"))
 
           for {
             _ <- effect
