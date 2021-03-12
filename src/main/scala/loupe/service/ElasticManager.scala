@@ -1,22 +1,20 @@
 package loupe.service
 
 import com.sksamuel.elastic4s.{ElasticClient, RequestFailure, RequestSuccess}
-import zio.{Has, IO, Task, UIO, URLayer, ZIO, ZLayer}
+import zio.{Has, IO, Task, URLayer, ZIO, ZLayer}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.zio.instances._
+import loupe.model.params.CreateSchemaParams
 import loupe.model.SchemaInfo
+import loupe.model.errors.{Conflict, Disaster, ElasticError}
 
 object ElasticManager {
   type ElasticManager = Has[Service]
 
-  sealed trait ElasticError
-  final case class Conflict(message: String) extends ElasticError
-  final case class Disaster(message: String) extends ElasticError
-
   trait Service {
     def listSchemas: Task[List[SchemaInfo]]
     def hasIndex(indexName: String): Task[Boolean]
-    def createSchema(name: String): IO[ElasticError, Boolean]
+    def createSchema(params: CreateSchemaParams): IO[ElasticError, SchemaInfo]
 
     private[service] def cleanAll: Task[Boolean]
   }
@@ -38,13 +36,15 @@ object ElasticManager {
             .map(_.result.exists)
         }
 
-        def createSchema(name: String): IO[ElasticError, Boolean] =
+        def createSchema(
+          params: CreateSchemaParams
+        ): IO[ElasticError, SchemaInfo] =
           client
-            .execute(createIndex(name))
+            .execute(createIndex(params.name))
             .catchAll(_ => IO.fail(Disaster("Network error")))
             .flatMap {
-              case RequestSuccess(_, _, _, result) =>
-                IO.succeed(result.acknowledged)
+              case RequestSuccess(_, _, _, _) =>
+                IO.succeed(SchemaInfo(name = params.name, documentsCount = 0))
               case RequestFailure(_, _, _, _) =>
                 IO.fail(Conflict("schema already exists"))
             }
@@ -63,6 +63,8 @@ object ElasticManager {
     ZIO.accessM(_.get.hasIndex(indexName))
   def cleanAll: ZIO[ElasticManager, Throwable, Boolean] =
     ZIO.accessM(_.get.cleanAll)
-  def createSchema(name: String): ZIO[ElasticManager, ElasticError, Boolean] =
-    ZIO.accessM(_.get.createSchema(name))
+  def createSchema(
+    params: CreateSchemaParams
+  ): ZIO[ElasticManager, ElasticError, SchemaInfo] =
+    ZIO.accessM(_.get.createSchema(params))
 }

@@ -1,17 +1,25 @@
 package loupe.api
 
-import loupe.model.SchemaInfo
+import loupe.model.errors.{Conflict, Disaster, Invalid, SomethingWentWrong}
 import loupe.service.ElasticManager
-import loupe.service.ElasticManager.ElasticManager
 import sttp.tapir.ztapir._
 import zio.IO
 
 object Schemas {
-  val schemasLogic
-    : ZServerEndpoint[ElasticManager, Unit, String, List[SchemaInfo]] =
-    Docs.schemas.zServerLogic { _ =>
-      ElasticManager.listSchemas.catchAll(_ => IO.fail("network err"))
+  val listSchemasLogic =
+    Docs.listSchemas.zServerLogic { _ =>
+      ElasticManager.listSchemas.catchAll(_ => IO.fail(SomethingWentWrong))
     }
 
-  val routes = List(schemasLogic)
+  val createSchemaLogic =
+    Docs.createSchema
+      .zServerLogic(
+        params =>
+          ElasticManager.createSchema(params).refineOrDie {
+            case Conflict(reason) => Invalid(List(reason))
+            case Disaster(_)      => SomethingWentWrong
+        }
+      )
+
+  val routes = List(listSchemasLogic)
 }
