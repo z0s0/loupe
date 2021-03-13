@@ -18,7 +18,8 @@ object Deps {
 
   val testcontainers = List(
     "org.testcontainers" % "testcontainers" % "1.15.0-rc2" % Test,
-    "org.testcontainers" % "elasticsearch" % "1.15.0-rc2" % Test
+    "org.testcontainers" % "elasticsearch" % "1.15.0-rc2" % Test,
+    ""
   )
 
   val catsDeps = List("org.typelevel" %% "cats-core" % vsn.cats)

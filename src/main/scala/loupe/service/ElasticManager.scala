@@ -1,12 +1,12 @@
 package loupe.service
 
-import com.sksamuel.elastic4s.{ElasticClient, RequestFailure, RequestSuccess}
 import zio.{Has, IO, Task, URLayer, ZIO, ZLayer}
-import com.sksamuel.elastic4s.ElasticDsl._
-import com.sksamuel.elastic4s.zio.instances._
 import loupe.model.params.CreateSchemaParams
 import loupe.model.SchemaInfo
 import loupe.model.errors.{Conflict, Disaster, ElasticError}
+import com.sksamuel.elastic4s.{ElasticClient, RequestFailure, RequestSuccess}
+import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s.zio.instances._
 
 object ElasticManager {
   type ElasticManager = Has[Service]
@@ -14,9 +14,10 @@ object ElasticManager {
   trait Service {
     def listSchemas: Task[List[SchemaInfo]]
     def hasIndex(indexName: String): Task[Boolean]
+    def removeIndex(indexName: String): Task[Unit]
     def createSchema(params: CreateSchemaParams): IO[ElasticError, SchemaInfo]
 
-    private[service] def cleanAll: Task[Boolean]
+    private[service] def cleanAll: Task[Unit]
   }
 
   val live: URLayer[Has[ElasticClient], ElasticManager] = ZLayer.fromService {
@@ -49,10 +50,15 @@ object ElasticManager {
                 IO.fail(Conflict("schema already exists"))
             }
 
-        override private[service] def cleanAll: Task[Boolean] =
+        override def removeIndex(indexName: String): Task[Unit] =
+          client
+            .execute(deleteIndex(indexName))
+            .unit
+
+        override private[service] def cleanAll: Task[Unit] =
           client
             .execute(deleteIndex("*"))
-            .map(_.result.acknowledged)
+            .unit
 
       }
   }
@@ -61,10 +67,12 @@ object ElasticManager {
     ZIO.accessM(_.get.listSchemas)
   def hasIndex(indexName: String): ZIO[ElasticManager, Throwable, Boolean] =
     ZIO.accessM(_.get.hasIndex(indexName))
-  def cleanAll: ZIO[ElasticManager, Throwable, Boolean] =
+  def cleanAll: ZIO[ElasticManager, Throwable, Unit] =
     ZIO.accessM(_.get.cleanAll)
   def createSchema(
     params: CreateSchemaParams
   ): ZIO[ElasticManager, ElasticError, SchemaInfo] =
     ZIO.accessM(_.get.createSchema(params))
+  def removeIndex(name: String): ZIO[ElasticManager, Throwable, Unit] =
+    ZIO.accessM(_.get.removeIndex(name))
 }

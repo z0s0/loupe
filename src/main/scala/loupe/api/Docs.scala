@@ -29,7 +29,7 @@ object Docs {
   val deleteSchema =
     endpoint.delete
       .in("schemas" / path[String])
-      .out(statusCode(StatusCode.Ok))
+      .out(statusCode(StatusCode.Found))
       .errorOut(statusCode(StatusCode.NotFound))
       .errorOut(jsonBody[ClientError])
 

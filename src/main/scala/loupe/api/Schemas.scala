@@ -21,5 +21,20 @@ object Schemas {
         }
       )
 
-  val routes = List(listSchemasLogic)
+  val deleteSchemaLogic =
+    Docs.deleteSchema
+      .zServerLogic { name =>
+        ElasticManager
+          .hasIndex(name)
+          .catchAll(_ => IO.fail(SomethingWentWrong))
+          .flatMap(
+            schemaExists =>
+              ElasticManager
+                .removeIndex(name)
+                .catchAll(_ => IO.fail(SomethingWentWrong))
+                .when(schemaExists)
+          )
+      }
+
+  val routes = List(listSchemasLogic, createSchemaLogic, deleteSchemaLogic)
 }
