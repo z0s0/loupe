@@ -1,24 +1,23 @@
 package loupe.service
 
+import zio.{Has, IO, Task, URLayer, ZIO, ZLayer}
+import loupe.model.params.CreateSchemaParams
+import loupe.model.SchemaInfo
+import loupe.model.errors.{Conflict, Disaster, ElasticError}
 import com.sksamuel.elastic4s.{ElasticClient, RequestFailure, RequestSuccess}
-import zio.{Has, IO, Task, UIO, URLayer, ZIO, ZLayer}
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.zio.instances._
-import loupe.model.SchemaInfo
 
 object ElasticManager {
   type ElasticManager = Has[Service]
 
-  sealed trait ElasticError
-  final case class Conflict(message: String) extends ElasticError
-  final case class Disaster(message: String) extends ElasticError
-
   trait Service {
     def listSchemas: Task[List[SchemaInfo]]
     def hasIndex(indexName: String): Task[Boolean]
-    def createSchema(name: String): IO[ElasticError, Boolean]
+    def removeIndex(indexName: String): Task[Unit]
+    def createSchema(params: CreateSchemaParams): IO[ElasticError, SchemaInfo]
 
-    private[service] def cleanAll: Task[Boolean]
+    private[service] def cleanAll: Task[Unit]
   }
 
   val live: URLayer[Has[ElasticClient], ElasticManager] = ZLayer.fromService {
@@ -38,21 +37,28 @@ object ElasticManager {
             .map(_.result.exists)
         }
 
-        def createSchema(name: String): IO[ElasticError, Boolean] =
+        def createSchema(
+          params: CreateSchemaParams
+        ): IO[ElasticError, SchemaInfo] =
           client
-            .execute(createIndex(name))
+            .execute(createIndex(params.name))
             .catchAll(_ => IO.fail(Disaster("Network error")))
             .flatMap {
-              case RequestSuccess(_, _, _, result) =>
-                IO.succeed(result.acknowledged)
+              case RequestSuccess(_, _, _, _) =>
+                IO.succeed(SchemaInfo(name = params.name, documentsCount = 0))
               case RequestFailure(_, _, _, _) =>
                 IO.fail(Conflict("schema already exists"))
             }
 
-        override private[service] def cleanAll: Task[Boolean] =
+        override def removeIndex(indexName: String): Task[Unit] =
+          client
+            .execute(deleteIndex(indexName))
+            .unit
+
+        override private[service] def cleanAll: Task[Unit] =
           client
             .execute(deleteIndex("*"))
-            .map(_.result.acknowledged)
+            .unit
 
       }
   }
@@ -61,8 +67,12 @@ object ElasticManager {
     ZIO.accessM(_.get.listSchemas)
   def hasIndex(indexName: String): ZIO[ElasticManager, Throwable, Boolean] =
     ZIO.accessM(_.get.hasIndex(indexName))
-  def cleanAll: ZIO[ElasticManager, Throwable, Boolean] =
+  def cleanAll: ZIO[ElasticManager, Throwable, Unit] =
     ZIO.accessM(_.get.cleanAll)
-  def createSchema(name: String): ZIO[ElasticManager, ElasticError, Boolean] =
-    ZIO.accessM(_.get.createSchema(name))
+  def createSchema(
+    params: CreateSchemaParams
+  ): ZIO[ElasticManager, ElasticError, SchemaInfo] =
+    ZIO.accessM(_.get.createSchema(params))
+  def removeIndex(name: String): ZIO[ElasticManager, Throwable, Unit] =
+    ZIO.accessM(_.get.removeIndex(name))
 }
