@@ -1,6 +1,6 @@
 package loupe.api
 
-import loupe.model.SchemaInfo
+import loupe.model.{SchemaInfo, UploadData}
 import loupe.model.errors.ClientError
 import loupe.model.params.CreateSchemaParams
 import sttp.model.StatusCode
@@ -33,6 +33,14 @@ object Docs {
       .errorOut(statusCode(StatusCode.NotFound))
       .errorOut(jsonBody[ClientError])
 
+  val loadData =
+    endpoint.post
+      .in("schemas" / path[String] / "upload")
+      .in(multipartBody[UploadData])
+      .out(statusCode(StatusCode.Ok))
+      .errorOut(statusCode(StatusCode.NotFound))
+      .errorOut(jsonBody[ClientError])
+
   val search =
     endpoint.get
       .in("search" / path[String])
@@ -41,7 +49,7 @@ object Docs {
       .errorOut(statusCode(StatusCode.NotFound))
       .errorOut(jsonBody[ClientError])
 
-  val docs = List(listSchemas, search, deleteSchema, createSchema)
+  val docs = List(listSchemas, search, deleteSchema, createSchema, loadData)
 
   val yaml = OpenAPIDocsInterpreter.toOpenAPI(docs, "Loupe", "1").toYaml
 }
