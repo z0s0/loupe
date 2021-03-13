@@ -1,17 +1,17 @@
 package service
 
-import com.sksamuel.elastic4s.ElasticClient
 import loupe.ElasticConfig
+import loupe.model.SchemaInfo
+import loupe.model.errors.Conflict
+import loupe.model.params.CreateSchemaParams
 import loupe.service.ElasticManager
-import loupe.service.ElasticManager.Conflict
 import loupe.{ElasticClient => Client}
 import org.testcontainers.elasticsearch.ElasticsearchContainer
-import zio.{Has, UIO, URLayer, ZIO, ZLayer}
+import zio.{Has, URLayer, ZLayer}
 import zio.test.DefaultRunnableSpec
 import zio.test._
 import zio.test.Assertion._
 import zio.blocking.{Blocking, effectBlocking}
-import zio.test.TestAspect._
 
 object ElasticManagerSpec extends DefaultRunnableSpec {
   val elasticsearchImage =
@@ -19,7 +19,8 @@ object ElasticManagerSpec extends DefaultRunnableSpec {
 
   val containerLayer: ZLayer[Blocking, Throwable, Has[ElasticsearchContainer]] =
     ZLayer.fromAcquireRelease(effectBlocking {
-      val container = new ElasticsearchContainer(elasticsearchImage)
+      val container =
+        new ElasticsearchContainer(elasticsearchImage).withReuse(true)
       container.start()
       container
     })(cont => effectBlocking(cont.stop()).orDie)
@@ -31,37 +32,47 @@ object ElasticManagerSpec extends DefaultRunnableSpec {
 
   val layer = containerLayer >>> elasticConfig >>> Client.live >>> ElasticManager.live
 
+  def createSchemaParams(name: String) =
+    CreateSchemaParams(name = name, lang = "en", mappings = Map("a" -> "int"))
+
   override def spec = {
-    suite("hasIndex")(
-      testM("hasIndex return false unless index exists. Returns true if exists") {
+    suite("ElasticManager")(
+      suite("hasIndex")(testM("returns if index exists") {
         for {
-          _ <- ElasticManager.createSchema("existing")
+          _ <- ElasticManager.createSchema(createSchemaParams("existing"))
           notExistingExists <- ElasticManager.hasIndex("not_existing_index")
           existingExists <- ElasticManager.hasIndex("existing")
         } yield {
           assert(notExistingExists)(isFalse) &&
           assert(existingExists)(isTrue)
         }
-      }
-    ).@@(after(ElasticManager.cleanAll.orDie))
-      .provideSomeLayerShared[Environment](layer.orDie)
+      }),
+      suite("createSchema")(
+        testM("adds new schema if index does not exist") {
+          for {
+            resp <- ElasticManager.createSchema(createSchemaParams("new_index"))
+          } yield
+            assert(resp)(
+              equalTo(SchemaInfo(name = "new_index", documentsCount = 0))
+            )
+        },
+        testM("createSchema returns Conflict() if index exists") {
+          val effect = ElasticManager.createSchema(createSchemaParams("idx"))
 
-    suite("createSchema")(
-      testM("adds new schema if index does not exist") {
+          for {
+            _ <- effect
+            eff <- effect.run
+          } yield assert(eff)(fails(equalTo(Conflict("schema already exists"))))
+        }
+      ),
+      suite("deleteSchema")(testM("removes existing schema") {
         for {
-          resp <- ElasticManager.createSchema("new_index")
-        } yield assert(resp)(isTrue)
-      },
-      testM("returns Conflict() if index exists") {
-        val effect = ElasticManager.createSchema("idx")
-
-        for {
-          _ <- effect
-          eff <- effect.run
-        } yield assert(eff)(fails(equalTo(Conflict("schema already exists"))))
-      }
-    ).@@(after(ElasticManager.cleanAll.orDie))
-      .provideCustomLayer(layer.orDie)
+          _ <- ElasticManager.createSchema(createSchemaParams("index"))
+          _ <- ElasticManager.removeIndex("index")
+          indexExists <- ElasticManager.hasIndex("index")
+        } yield assert(indexExists)(isFalse)
+      })
+    ).provideCustomLayer(layer.orDie)
   }
 
 }
