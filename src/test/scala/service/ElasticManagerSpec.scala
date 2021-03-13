@@ -12,7 +12,6 @@ import zio.test.DefaultRunnableSpec
 import zio.test._
 import zio.test.Assertion._
 import zio.blocking.{Blocking, effectBlocking}
-import zio.test.TestAspect._
 
 object ElasticManagerSpec extends DefaultRunnableSpec {
   val elasticsearchImage =
@@ -65,9 +64,15 @@ object ElasticManagerSpec extends DefaultRunnableSpec {
             eff <- effect.run
           } yield assert(eff)(fails(equalTo(Conflict("schema already exists"))))
         }
-      )
-    ).@@(after(ElasticManager.cleanAll.orDie))
-      .provideCustomLayer(layer.orDie)
+      ),
+      suite("deleteSchema")(testM("removes existing schema") {
+        for {
+          _ <- ElasticManager.createSchema(createSchemaParams("index"))
+          _ <- ElasticManager.removeIndex("index")
+          indexExists <- ElasticManager.hasIndex("index")
+        } yield assert(indexExists)(isFalse)
+      })
+    ).provideCustomLayer(layer.orDie)
   }
 
 }

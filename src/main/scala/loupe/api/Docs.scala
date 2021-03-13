@@ -41,7 +41,7 @@ object Docs {
       .errorOut(statusCode(StatusCode.NotFound))
       .errorOut(jsonBody[ClientError])
 
-  val docs = List(listSchemas, search)
+  val docs = List(listSchemas, search, deleteSchema, createSchema)
 
   val yaml = OpenAPIDocsInterpreter.toOpenAPI(docs, "Loupe", "1").toYaml
 }
